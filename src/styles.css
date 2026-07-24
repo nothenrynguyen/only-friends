@@ -245,12 +245,6 @@ input:focus-visible {
   background: #f5f3ff;
 }
 
-.single-import {
-  max-width: 760px;
-  min-height: 380px;
-  margin: 38px auto 0;
-}
-
 .card-heading {
   display: flex;
   align-items: center;
@@ -342,28 +336,63 @@ input:focus-visible {
   font-size: 12px;
 }
 
-.dual-success {
+.candidate-picker {
+  flex: 1;
+  min-height: 0;
+  padding: 24px 0 18px;
+  text-align: center;
+}
+
+.candidate-picker > strong {
+  display: block;
+  font-size: 15px;
+}
+
+.candidate-picker > p {
+  margin: 5px 0 14px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.candidate-list {
+  max-height: 170px;
+  overflow: auto;
   display: grid;
-  grid-template-columns: 1fr 1px 1fr;
-  column-gap: 34px;
-  align-content: center;
+  gap: 7px;
 }
 
-.dual-success > div {
+.candidate-button {
+  width: 100%;
+  padding: 10px 11px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
   display: flex;
-  flex-direction: column;
   align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: var(--ink);
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
 }
 
-.dual-success .success-divider {
-  width: 1px;
-  height: 74px;
-  margin: auto;
-  background: #d7d2f6;
+.candidate-button:hover {
+  border-color: var(--green);
 }
 
-.dual-success p {
-  grid-column: 1 / -1;
+.candidate-button span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.candidate-button b {
+  flex: 0 0 auto;
+  color: var(--green);
+  font-size: 11px;
 }
 
 .import-actions {
@@ -425,6 +454,13 @@ input:focus-visible {
   margin-top: 64px;
   padding-top: 56px;
   border-top: 1px solid var(--line);
+}
+
+.results-note {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .download-button {

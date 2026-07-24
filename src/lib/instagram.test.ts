@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   compareLists,
-  parseInstagramExport,
+  discoverImportFiles,
   parseInstagramFiles,
   parseInstagramHtml,
   parseInstagramJson,
@@ -37,6 +37,8 @@ describe("Instagram export parsing", () => {
       <a href="https://www.instagram.com/Alice/">Alice</a>
       <a href="https://instagram.com/_u/bob.test">bob.test</a>
       <a href="https://example.com/not-instagram">ignore me</a>
+      <a href="https://instagram.com/accounts/login/">Log in</a>
+      <a href="https://instagram.com/__deleted__abc123/">Deleted account</a>
     `;
     expect(parseInstagramHtml(html)).toEqual(["alice", "bob.test"]);
   });
@@ -68,7 +70,7 @@ describe("Instagram export parsing", () => {
     expect(result.skippedFileCount).toBe(1);
   });
 
-  it("discovers both lists anywhere inside one complete export folder", async () => {
+  it("automatically combines standard split follower files", () => {
     const followerOne = new File(
       [JSON.stringify([relationship("alice")])],
       "followers_1.json",
@@ -100,27 +102,26 @@ describe("Instagram export parsing", () => {
       value: "my-export/deeply/nested/following.json",
     });
 
-    const result = await parseInstagramExport([
+    const result = discoverImportFiles([
       followerOne,
       followerTwo,
       following,
       unrelated,
-    ]);
+    ], "followers");
 
-    expect(result.followers.usernames).toEqual(["alice", "bob"]);
-    expect(result.following.usernames).toEqual(["bob", "charlie"]);
-    expect(result.totalFilesScanned).toBe(4);
+    expect(result.automaticFiles).toEqual([followerOne, followerTwo]);
+    expect(result.candidates).toEqual([]);
   });
 
-  it("can identify renamed HTML files from their headings", async () => {
-    const followers = new File(
+  it("asks the user when a folder has multiple ambiguous files", () => {
+    const first = new File(
       [
         '<html><head><title>Followers</title></head><body><a href="https://instagram.com/alice">alice</a></body></html>',
       ],
       "first-list.html",
       { type: "text/html" },
     );
-    const following = new File(
+    const second = new File(
       [
         '<html><body><h1>Following</h1><a href="https://instagram.com/bob">bob</a></body></html>',
       ],
@@ -128,9 +129,22 @@ describe("Instagram export parsing", () => {
       { type: "text/html" },
     );
 
-    const result = await parseInstagramExport([followers, following]);
-    expect(result.followers.usernames).toEqual(["alice"]);
-    expect(result.following.usernames).toEqual(["bob"]);
+    const result = discoverImportFiles([second, first], "followers");
+    expect(result.automaticFiles).toEqual([]);
+    expect(result.candidates).toEqual([first, second]);
+  });
+
+  it("uses a lone renamed HTML file without making the user find it", () => {
+    const renamed = new File(
+      ['<a href="https://instagram.com/alice">alice</a>'],
+      "my-list.html",
+      { type: "text/html" },
+    );
+
+    expect(discoverImportFiles([renamed], "following")).toEqual({
+      automaticFiles: [renamed],
+      candidates: [],
+    });
   });
 });
 

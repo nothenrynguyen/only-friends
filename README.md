@@ -6,8 +6,9 @@ browser.
 
 ## What it does
 
-- Accepts one complete Instagram export folder
-- Recursively discovers the followers and following files
+- Accepts separate Followers and Following folders
+- Recursively discovers the HTML or JSON file inside each folder
+- Asks the user which file to use when a folder contains multiple ambiguous files
 - Supports split follower exports such as `followers_1.json`
 - Shows all unique accounts, mutuals, accounts that do not follow back, and
   accounts the user does not follow back

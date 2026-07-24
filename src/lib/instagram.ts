@@ -6,10 +6,9 @@ export type ParsedImport = {
   skippedFileCount: number;
 };
 
-export type ParsedInstagramExport = {
-  followers: ParsedImport;
-  following: ParsedImport;
-  totalFilesScanned: number;
+export type ImportFileDiscovery = {
+  automaticFiles: File[];
+  candidates: File[];
 };
 
 const SUPPORTED_FILE = /\.(json|html?)$/i;
@@ -20,14 +19,26 @@ function cleanUsername(input: string): string | null {
   try {
     if (/^https?:\/\//i.test(value)) {
       const url = new URL(value);
+      if (!/(^|\.)instagram\.com$/i.test(url.hostname)) return null;
       const pieces = url.pathname.split("/").filter(Boolean);
-      value = pieces[0] === "_u" ? pieces[1] ?? "" : pieces[0] ?? "";
+      if (pieces[0] === "_u") {
+        value = pieces[1] ?? "";
+      } else {
+        if (pieces.length !== 1) return null;
+        value = pieces[0] ?? "";
+      }
     }
   } catch {
     return null;
   }
 
   value = decodeURIComponent(value).replace(/^@/, "").replace(/\/+$/, "");
+  if (
+    /^(accounts|about|developer|direct|explore|legal|p|reel|stories)$/i.test(value) ||
+    /^_+deleted_+/i.test(value)
+  ) {
+    return null;
+  }
   return /^[a-zA-Z0-9._]{1,30}$/.test(value) ? value.toLowerCase() : null;
 }
 
@@ -100,24 +111,6 @@ function classifyPath(file: File): ImportKind | null {
   return null;
 }
 
-function classifyContent(text: string, file: File): ImportKind | null {
-  if (/\.json$/i.test(file.name)) {
-    if (/"relationships_following"\s*:/i.test(text)) return "following";
-    if (/"relationships_followers"\s*:/i.test(text)) return "followers";
-    return null;
-  }
-
-  const document = new DOMParser().parseFromString(text, "text/html");
-  const headingText = [
-    document.title,
-    ...[...document.querySelectorAll("h1, h2")].map((element) => element.textContent ?? ""),
-  ].join(" ");
-
-  if (/\bfollowing\b/i.test(headingText)) return "following";
-  if (/\bfollowers\b/i.test(headingText)) return "followers";
-  return null;
-}
-
 function relevantFiles(files: File[], kind: ImportKind): File[] {
   const supported = files.filter((file) => SUPPORTED_FILE.test(file.name));
   const targetPattern =
@@ -163,57 +156,42 @@ export async function parseInstagramFiles(
   };
 }
 
-export async function parseInstagramExport(
+export function discoverImportFiles(
   files: File[],
-): Promise<ParsedInstagramExport> {
+  kind: ImportKind,
+): ImportFileDiscovery {
   const supported = files.filter((file) => SUPPORTED_FILE.test(file.name));
   if (supported.length === 0) {
     throw new Error("No JSON or HTML files were found inside that folder.");
   }
 
-  const results: Record<ImportKind, Set<string>> = {
-    followers: new Set<string>(),
-    following: new Set<string>(),
-  };
-  const parsedFileNames: Record<ImportKind, string[]> = {
-    followers: [],
-    following: [],
-  };
-
-  for (const file of supported) {
-    const text = await readFileText(file);
-    const kind = classifyPath(file) ?? classifyContent(text, file);
-    if (!kind) continue;
-
-    const parsed = /\.json$/i.test(file.name)
-      ? parseInstagramJson(text)
-      : parseInstagramHtml(text);
-    if (parsed.length === 0) continue;
-
-    parsed.forEach((username) => results[kind].add(username));
-    parsedFileNames[kind].push(filePath(file));
+  const standard = supported.filter((file) => classifyPath(file) === kind);
+  if (standard.length > 0) {
+    if (kind === "followers" || standard.length === 1) {
+      return { automaticFiles: standard, candidates: [] };
+    }
+    return {
+      automaticFiles: [],
+      candidates: [...standard].sort((a, b) =>
+        filePath(a).localeCompare(filePath(b)),
+      ),
+    };
   }
 
-  const missing = (["followers", "following"] as ImportKind[]).filter(
-    (kind) => results[kind].size === 0,
-  );
-  if (missing.length > 0) {
-    throw new Error(
-      `We found the folder, but could not identify your ${missing.join(" and ")} list${missing.length > 1 ? "s" : ""}. Make sure the complete Instagram export folder is selected.`,
-    );
+  if (supported.length === 1) {
+    return { automaticFiles: supported, candidates: [] };
   }
-
-  const buildImport = (kind: ImportKind): ParsedImport => ({
-    usernames: [...results[kind]].sort(),
-    parsedFileNames: parsedFileNames[kind],
-    skippedFileCount: supported.length - parsedFileNames[kind].length,
-  });
 
   return {
-    followers: buildImport("followers"),
-    following: buildImport("following"),
-    totalFilesScanned: files.length,
+    automaticFiles: [],
+    candidates: [...supported].sort((a, b) =>
+      filePath(a).localeCompare(filePath(b)),
+    ),
   };
+}
+
+export function displayFilePath(file: File): string {
+  return filePath(file);
 }
 
 export function compareLists(followers: string[], following: string[]) {

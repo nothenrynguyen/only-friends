@@ -7,13 +7,17 @@ import {
 } from "react";
 import {
   compareLists,
-  parseInstagramExport,
-  type ParsedInstagramExport,
+  discoverImportFiles,
+  displayFilePath,
+  parseInstagramFiles,
+  type ImportKind,
+  type ParsedImport,
 } from "./lib/instagram";
 
 type ImportState = {
-  status: "empty" | "loading" | "ready" | "error";
-  data?: ParsedInstagramExport;
+  status: "empty" | "loading" | "choosing" | "ready" | "error";
+  data?: ParsedImport;
+  candidates?: File[];
   error?: string;
 };
 
@@ -36,6 +40,24 @@ const TAB_DETAILS: Record<ResultTab, { label: string; description: string }> = {
   youDoNotFollow: {
     label: "You don’t follow back",
     description: "These accounts follow you, but you do not follow them.",
+  },
+};
+
+const IMPORT_COPY: Record<
+  ImportKind,
+  { step: string; eyebrow: string; title: string; action: string }
+> = {
+  followers: {
+    step: "1",
+    eyebrow: "People who follow you",
+    title: "Followers folder",
+    action: "Choose followers folder",
+  },
+  following: {
+    step: "2",
+    eyebrow: "People you follow",
+    title: "Following folder",
+    action: "Choose following folder",
   },
 };
 
@@ -83,18 +105,23 @@ async function filesFromDrop(event: DragEvent): Promise<File[]> {
 }
 
 function FolderImport({
+  kind,
   state,
   onFiles,
+  onCandidate,
 }: {
+  kind: ImportKind;
   state: ImportState;
-  onFiles: (files: File[]) => void;
+  onFiles: (kind: ImportKind, files: File[]) => void;
+  onCandidate: (kind: ImportKind, file: File) => void;
 }) {
   const folderInput = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
+  const copy = IMPORT_COPY[kind];
 
   const handleInput = (event: ChangeEvent<HTMLInputElement>) => {
     const files = [...(event.target.files ?? [])];
-    if (files.length) onFiles(files);
+    if (files.length) onFiles(kind, files);
     event.target.value = "";
   };
 
@@ -102,12 +129,12 @@ function FolderImport({
     event.preventDefault();
     setDragging(false);
     const files = await filesFromDrop(event);
-    if (files.length) onFiles(files);
+    if (files.length) onFiles(kind, files);
   };
 
   return (
     <article
-      className={`import-card single-import ${dragging ? "is-dragging" : ""} ${state.status === "ready" ? "is-ready" : ""}`}
+      className={`import-card ${dragging ? "is-dragging" : ""} ${state.status === "ready" ? "is-ready" : ""}`}
       onDragEnter={(event) => {
         event.preventDefault();
         setDragging(true);
@@ -121,47 +148,58 @@ function FolderImport({
       onDrop={handleDrop}
     >
       <div className="card-heading">
-        <span className="step-number">1</span>
+        <span className="step-number">{copy.step}</span>
         <div>
-          <p className="eyebrow">One folder, that’s it</p>
-          <h3>Your Instagram export</h3>
+          <p className="eyebrow">{copy.eyebrow}</p>
+          <h3>{copy.title}</h3>
         </div>
         {state.status === "ready" && (
-          <span className="ready-badge" aria-label="Instagram export ready">
+          <span className="ready-badge" aria-label={`${copy.title} ready`}>
             ✓ Ready
           </span>
         )}
       </div>
 
       {state.status === "ready" && state.data ? (
-        <div className="import-success dual-success">
-          <div>
-            <strong>{state.data.followers.usernames.length.toLocaleString()}</strong>
-            <span>followers</span>
-          </div>
-          <span className="success-divider" aria-hidden="true" />
-          <div>
-            <strong>{state.data.following.usernames.length.toLocaleString()}</strong>
-            <span>following</span>
-          </div>
+        <div className="import-success">
+          <strong>{state.data.usernames.length.toLocaleString()}</strong>
+          <span>{kind}</span>
           <p>
-            Found automatically in {state.data.totalFilesScanned.toLocaleString()} scanned{" "}
-            {state.data.totalFilesScanned === 1 ? "file" : "files"}
+            Read {state.data.parsedFileNames.length}{" "}
+            {state.data.parsedFileNames.length === 1 ? "file" : "files"}
           </p>
+        </div>
+      ) : state.status === "choosing" && state.candidates ? (
+        <div className="candidate-picker">
+          <strong>Which file contains your {kind}?</strong>
+          <p>We found more than one possible list inside this folder.</p>
+          <div className="candidate-list">
+            {state.candidates.map((file) => (
+              <button
+                key={displayFilePath(file)}
+                className="candidate-button"
+                onClick={() => onCandidate(kind, file)}
+                title={displayFilePath(file)}
+              >
+                <span>{displayFilePath(file)}</span>
+                <b>Use this file</b>
+              </button>
+            ))}
+          </div>
         </div>
       ) : (
         <div className="drop-copy">
           <span className="folder-icon" aria-hidden="true">
             ↓
           </span>
-          <strong>Drop the complete Instagram export folder here</strong>
-          <span>We’ll find the followers and following files inside it</span>
+          <strong>Drop the {kind} folder here</strong>
+          <span>We’ll search every folder inside it for HTML or JSON</span>
         </div>
       )}
 
       {state.status === "loading" && (
         <p className="status-message" aria-live="polite">
-          Searching the folder on this device…
+          Searching this folder on your device…
         </p>
       )}
       {state.status === "error" && (
@@ -172,7 +210,7 @@ function FolderImport({
 
       <div className="import-actions">
         <button className="primary-button" onClick={() => folderInput.current?.click()}>
-          {state.status === "ready" ? "Choose a different folder" : "Choose Instagram folder"}
+          {state.status === "empty" ? copy.action : "Choose a different folder"}
         </button>
       </div>
 
@@ -184,7 +222,9 @@ function FolderImport({
         webkitdirectory=""
         directory=""
         onChange={handleInput}
-        aria-label="Choose complete Instagram export folder"
+        aria-label={copy.action}
+        aria-hidden="true"
+        tabIndex={-1}
       />
     </article>
   );
@@ -202,18 +242,45 @@ function downloadCsv(usernames: string[], label: string) {
 }
 
 export default function App() {
-  const [importState, setImportState] = useState<ImportState>({ status: "empty" });
+  const [imports, setImports] = useState<Record<ImportKind, ImportState>>({
+    followers: { status: "empty" },
+    following: { status: "empty" },
+  });
   const [activeTab, setActiveTab] = useState<ResultTab>("notFollowingBack");
   const [search, setSearch] = useState("");
   const [sortOrder, setSortOrder] = useState<SortOrder>("az");
 
-  const handleFiles = async (files: File[]) => {
-    setImportState({ status: "loading" });
+  const setImport = (kind: ImportKind, state: ImportState) => {
+    setImports((current) => ({ ...current, [kind]: state }));
+  };
+
+  const parseFiles = async (kind: ImportKind, files: File[]) => {
+    setImport(kind, { status: "loading" });
     try {
-      const data = await parseInstagramExport(files);
-      setImportState({ status: "ready", data });
+      const data = await parseInstagramFiles(files, kind);
+      setImport(kind, { status: "ready", data });
     } catch (error) {
-      setImportState({
+      setImport(kind, {
+        status: "error",
+        error: error instanceof Error ? error.message : "We could not read that folder.",
+      });
+    }
+  };
+
+  const handleFolder = async (kind: ImportKind, files: File[]) => {
+    setImport(kind, { status: "loading" });
+    try {
+      const discovery = discoverImportFiles(files, kind);
+      if (discovery.automaticFiles.length > 0) {
+        await parseFiles(kind, discovery.automaticFiles);
+      } else {
+        setImport(kind, {
+          status: "choosing",
+          candidates: discovery.candidates,
+        });
+      }
+    } catch (error) {
+      setImport(kind, {
         status: "error",
         error: error instanceof Error ? error.message : "We could not read that folder.",
       });
@@ -221,12 +288,12 @@ export default function App() {
   };
 
   const comparison = useMemo(() => {
-    if (!importState.data) return null;
+    if (!imports.followers.data || !imports.following.data) return null;
     return compareLists(
-      importState.data.followers.usernames,
-      importState.data.following.usernames,
+      imports.followers.data.usernames,
+      imports.following.data.usernames,
     );
-  }, [importState.data]);
+  }, [imports.followers.data, imports.following.data]);
 
   const currentResults = comparison?.[activeTab] ?? [];
   const visibleResults = useMemo(() => {
@@ -259,8 +326,8 @@ export default function App() {
             <em>made obvious.</em>
           </h1>
           <p className="hero-copy">
-            Choose one Instagram export folder. Only Friends finds both lists,
-            compares them, and shows you exactly where everyone stands.
+            Choose your followers folder and your following folder. Only Friends
+            finds the lists inside, compares them, and shows you where everyone stands.
           </p>
           <div className="trust-row">
             <span>100% on-device</span>
@@ -273,16 +340,30 @@ export default function App() {
           <div className="section-heading">
             <div>
               <p className="eyebrow">Private comparison tool</p>
-              <h2 id="import-title">Choose one folder</h2>
+              <h2 id="import-title">Choose two folders</h2>
             </div>
             <span className="local-note">Files never leave this device</span>
           </div>
 
-          <FolderImport state={importState} onFiles={handleFiles} />
+          <div className="import-grid">
+            <FolderImport
+              kind="followers"
+              state={imports.followers}
+              onFiles={handleFolder}
+              onCandidate={(kind, file) => parseFiles(kind, [file])}
+            />
+            <FolderImport
+              kind="following"
+              state={imports.following}
+              onFiles={handleFolder}
+              onCandidate={(kind, file) => parseFiles(kind, [file])}
+            />
+          </div>
 
           {!comparison && (
             <p className="compare-hint">
-              We’ll search every subfolder for Instagram’s followers and following files.
+              Choose both folders to compare them. Split files such as followers_1
+              and followers_2 are combined automatically.
             </p>
           )}
 
@@ -302,6 +383,12 @@ export default function App() {
                   Download this view
                 </button>
               </div>
+
+              <p className="results-note">
+                Compared {imports.followers.data?.usernames.length.toLocaleString()} followers
+                with {imports.following.data?.usernames.length.toLocaleString()} following.
+                Results reflect the export date, which can differ from Instagram’s live totals.
+              </p>
 
               <div className="result-tabs" role="tablist" aria-label="Comparison results">
                 {(Object.keys(TAB_DETAILS) as ResultTab[]).map((tab) => (
@@ -391,28 +478,28 @@ export default function App() {
         <section className="how-section" id="how-it-works">
           <div className="how-heading">
             <p className="eyebrow">Before you start</p>
-            <h2>Download once. Choose once.</h2>
+            <h2>Download once. Choose two folders.</h2>
             <p>
               Request “Followers and following” from Instagram’s Accounts Center.
-              When the download is ready, choose the complete unzipped folder here—
-              not the individual files inside it.
+              Unzip the download, then choose the folders containing each list.
+              You do not need to find or select the HTML or JSON files yourself.
             </p>
           </div>
           <ol className="how-steps">
             <li>
               <span>01</span>
-              <strong>Open Accounts Center</strong>
-              <p>Instagram Settings → Accounts Center → Your information and permissions.</p>
+              <strong>Download your information</strong>
+              <p>Choose Followers and following, all time, then JSON or HTML.</p>
             </li>
             <li>
               <span>02</span>
-              <strong>Download your information</strong>
-              <p>Select Followers and following, all time, then JSON or HTML.</p>
+              <strong>Choose the followers folder</strong>
+              <p>Only Friends finds and combines every split followers file inside.</p>
             </li>
             <li>
               <span>03</span>
-              <strong>Choose the complete folder</strong>
-              <p>Only Friends finds and compares the right files automatically.</p>
+              <strong>Choose the following folder</strong>
+              <p>If a folder has multiple possible files, you’ll be asked which one to use.</p>
             </li>
           </ol>
         </section>
@@ -427,7 +514,7 @@ export default function App() {
           </div>
           <p>
             There is no account, database, analytics tracker, or upload server.
-            Your folder is read locally by your browser and disappears when you
+            Your folders are read locally by your browser and disappear when you
             close or refresh the page.
           </p>
         </section>
