@@ -1,20 +1,20 @@
 @import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap");
 
 :root {
-  color: #22231f;
-  background: #f6f2e9;
+  color: #171627;
+  background: #f7f7ff;
   font-family: "DM Sans", system-ui, sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  --ink: #22231f;
-  --muted: #6f7168;
-  --paper: #f6f2e9;
-  --card: #fffdf8;
-  --line: #d8d5cb;
-  --green: #315c47;
-  --green-soft: #e3ece4;
-  --orange: #cf6b3b;
-  --shadow: 0 22px 60px rgba(49, 47, 39, 0.08);
+  --ink: #171627;
+  --muted: #686779;
+  --paper: #f7f7ff;
+  --card: #ffffff;
+  --line: #dddcef;
+  --green: #5a49e6;
+  --green-soft: #eceaff;
+  --orange: #ff667d;
+  --shadow: 0 22px 60px rgba(38, 31, 105, 0.1);
 }
 
 * {
@@ -30,7 +30,8 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background:
-    radial-gradient(circle at 12% 8%, rgba(225, 214, 187, 0.54), transparent 30rem),
+    radial-gradient(circle at 12% 8%, rgba(185, 177, 255, 0.34), transparent 30rem),
+    radial-gradient(circle at 88% 18%, rgba(255, 178, 190, 0.25), transparent 26rem),
     var(--paper);
 }
 
@@ -62,7 +63,7 @@ input:focus-visible {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid rgba(34, 35, 31, 0.14);
+  border-bottom: 1px solid rgba(23, 22, 39, 0.13);
 }
 
 .brand {
@@ -76,15 +77,17 @@ input:focus-visible {
 
 .brand-mark {
   display: grid;
-  width: 32px;
+  width: 36px;
   height: 32px;
   place-items: center;
   border-radius: 50%;
   color: #fff;
   background: var(--green);
   font-family: "Instrument Serif", serif;
-  font-size: 21px;
-  font-style: italic;
+  font-family: "DM Sans", sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
 }
 
 .header-link {
@@ -104,10 +107,10 @@ input:focus-visible {
   display: inline-block;
   margin: 0 0 26px;
   padding: 8px 14px;
-  border: 1px solid #c9c6bb;
+  border: 1px solid #d4d1ee;
   border-radius: 999px;
   color: var(--green);
-  background: rgba(255, 253, 248, 0.65);
+  background: rgba(255, 255, 255, 0.72);
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -148,7 +151,7 @@ input:focus-visible {
   justify-content: center;
   gap: 28px;
   margin-top: 36px;
-  color: #4f514a;
+  color: #545267;
   font-size: 13px;
   font-weight: 600;
 }
@@ -165,7 +168,7 @@ input:focus-visible {
   padding: 58px;
   border: 1px solid var(--line);
   border-radius: 28px;
-  background: rgba(255, 253, 248, 0.9);
+  background: rgba(255, 255, 255, 0.9);
   box-shadow: var(--shadow);
 }
 
@@ -219,11 +222,11 @@ input:focus-visible {
 .import-card {
   min-height: 355px;
   padding: 26px;
-  border: 1.5px dashed #bab8af;
+  border: 1.5px dashed #bdb9df;
   border-radius: 18px;
   display: flex;
   flex-direction: column;
-  background: #fbf9f3;
+  background: #fafaff;
   transition:
     border-color 160ms ease,
     background 160ms ease,
@@ -232,14 +235,20 @@ input:focus-visible {
 
 .import-card.is-dragging {
   border-color: var(--orange);
-  background: #fff7ed;
+  background: #fff3f5;
   transform: translateY(-2px);
 }
 
 .import-card.is-ready {
   border-style: solid;
-  border-color: #aac2ad;
-  background: #f4f8f2;
+  border-color: #b7b0f4;
+  background: #f5f3ff;
+}
+
+.single-import {
+  max-width: 760px;
+  min-height: 380px;
+  margin: 38px auto 0;
 }
 
 .card-heading {
@@ -309,7 +318,7 @@ input:focus-visible {
   place-items: center;
   border-radius: 50%;
   color: var(--orange);
-  background: #f5e5d9;
+  background: #ffe7eb;
   font-size: 20px;
 }
 
@@ -331,6 +340,30 @@ input:focus-visible {
   margin: 10px 0 0;
   color: var(--muted);
   font-size: 12px;
+}
+
+.dual-success {
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr;
+  column-gap: 34px;
+  align-content: center;
+}
+
+.dual-success > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.dual-success .success-divider {
+  width: 1px;
+  height: 74px;
+  margin: auto;
+  background: #d7d2f6;
+}
+
+.dual-success p {
+  grid-column: 1 / -1;
 }
 
 .import-actions {
@@ -401,7 +434,7 @@ input:focus-visible {
 
 .result-tabs {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 10px;
   margin-top: 30px;
 }
@@ -415,7 +448,7 @@ input:focus-visible {
   flex-direction: column;
   align-items: flex-start;
   color: var(--muted);
-  background: #f5f2eb;
+  background: #f4f3ff;
   cursor: pointer;
   text-align: left;
 }
@@ -474,6 +507,27 @@ input:focus-visible {
   color: var(--ink);
   background: #fff;
   font-size: 13px;
+}
+
+.filter-controls {
+  display: flex;
+  gap: 9px;
+}
+
+.sort-field select {
+  min-width: 82px;
+  padding: 11px 30px 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  color: var(--ink);
+  background: #fff;
+  font-size: 13px;
+}
+
+.result-count {
+  margin: 20px 0 -10px;
+  color: var(--muted);
+  font-size: 11px;
 }
 
 .username-list {
@@ -564,7 +618,7 @@ input:focus-visible {
   min-height: 220px;
   padding: 26px;
   border-top: 1px solid var(--ink);
-  background: rgba(255, 253, 248, 0.42);
+  background: rgba(255, 255, 255, 0.48);
 }
 
 .how-steps span {
@@ -596,7 +650,7 @@ input:focus-visible {
   align-items: center;
   gap: 30px;
   color: #f4f1e8;
-  background: var(--green);
+  background: linear-gradient(135deg, #27214f, #5a49e6);
 }
 
 .privacy-icon {
@@ -610,7 +664,7 @@ input:focus-visible {
 }
 
 .privacy-section .eyebrow {
-  color: #c8ddca;
+  color: #d8d3ff;
 }
 
 .privacy-section h2 {
@@ -620,7 +674,7 @@ input:focus-visible {
 
 .privacy-section > p {
   margin: 0;
-  color: #d7dfd7;
+  color: #e4e1ff;
   font-size: 13px;
   line-height: 1.75;
 }
@@ -708,6 +762,14 @@ footer span {
     width: 100%;
   }
 
+  .filter-controls {
+    width: 100%;
+  }
+
+  .sort-field select {
+    height: 100%;
+  }
+
   .how-section {
     padding: 90px 0;
   }
@@ -780,6 +842,10 @@ footer span {
 
   .result-tabs span {
     font-size: 10px;
+  }
+
+  .result-tabs {
+    grid-template-columns: repeat(2, 1fr);
   }
 
   .list-panel {

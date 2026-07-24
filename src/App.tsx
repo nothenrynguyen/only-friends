@@ -7,20 +7,37 @@ import {
 } from "react";
 import {
   compareLists,
-  parseInstagramFiles,
-  type ImportKind,
-  type ParsedImport,
+  parseInstagramExport,
+  type ParsedInstagramExport,
 } from "./lib/instagram";
 
 type ImportState = {
   status: "empty" | "loading" | "ready" | "error";
-  data?: ParsedImport;
+  data?: ParsedInstagramExport;
   error?: string;
 };
 
-type ResultTab = "notFollowingBack" | "youDoNotFollow" | "mutuals";
+type ResultTab = "all" | "mutuals" | "notFollowingBack" | "youDoNotFollow";
+type SortOrder = "az" | "za";
 
-const EMPTY_STATE: ImportState = { status: "empty" };
+const TAB_DETAILS: Record<ResultTab, { label: string; description: string }> = {
+  all: {
+    label: "All accounts",
+    description: "Every unique account found across both lists.",
+  },
+  mutuals: {
+    label: "Mutuals",
+    description: "You follow each other.",
+  },
+  notFollowingBack: {
+    label: "Don’t follow you back",
+    description: "You follow these accounts, but they do not follow you.",
+  },
+  youDoNotFollow: {
+    label: "You don’t follow back",
+    description: "These accounts follow you, but you do not follow them.",
+  },
+};
 
 function readEntry(entry: FileSystemEntry): Promise<File[]> {
   if (entry.isFile) {
@@ -65,20 +82,15 @@ async function filesFromDrop(event: DragEvent): Promise<File[]> {
   return [...event.dataTransfer.files];
 }
 
-function ImportCard({
-  kind,
+function FolderImport({
   state,
   onFiles,
 }: {
-  kind: ImportKind;
   state: ImportState;
   onFiles: (files: File[]) => void;
 }) {
   const folderInput = useRef<HTMLInputElement>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
-  const title = kind === "followers" ? "Followers" : "Following";
-  const number = kind === "followers" ? "1" : "2";
 
   const handleInput = (event: ChangeEvent<HTMLInputElement>) => {
     const files = [...(event.target.files ?? [])];
@@ -95,7 +107,7 @@ function ImportCard({
 
   return (
     <article
-      className={`import-card ${dragging ? "is-dragging" : ""} ${state.status === "ready" ? "is-ready" : ""}`}
+      className={`import-card single-import ${dragging ? "is-dragging" : ""} ${state.status === "ready" ? "is-ready" : ""}`}
       onDragEnter={(event) => {
         event.preventDefault();
         setDragging(true);
@@ -109,40 +121,47 @@ function ImportCard({
       onDrop={handleDrop}
     >
       <div className="card-heading">
-        <span className="step-number">{number}</span>
+        <span className="step-number">1</span>
         <div>
-          <p className="eyebrow">Import {number}</p>
-          <h3>{title}</h3>
+          <p className="eyebrow">One folder, that’s it</p>
+          <h3>Your Instagram export</h3>
         </div>
         {state.status === "ready" && (
-          <span className="ready-badge" aria-label={`${title} import ready`}>
+          <span className="ready-badge" aria-label="Instagram export ready">
             ✓ Ready
           </span>
         )}
       </div>
 
       {state.status === "ready" && state.data ? (
-        <div className="import-success">
-          <strong>{state.data.usernames.length.toLocaleString()}</strong>
-          <span>accounts found</span>
+        <div className="import-success dual-success">
+          <div>
+            <strong>{state.data.followers.usernames.length.toLocaleString()}</strong>
+            <span>followers</span>
+          </div>
+          <span className="success-divider" aria-hidden="true" />
+          <div>
+            <strong>{state.data.following.usernames.length.toLocaleString()}</strong>
+            <span>following</span>
+          </div>
           <p>
-            {state.data.parsedFileNames.length} Instagram{" "}
-            {state.data.parsedFileNames.length === 1 ? "file" : "files"} read
+            Found automatically in {state.data.totalFilesScanned.toLocaleString()} scanned{" "}
+            {state.data.totalFilesScanned === 1 ? "file" : "files"}
           </p>
         </div>
       ) : (
         <div className="drop-copy">
           <span className="folder-icon" aria-hidden="true">
-            ↗
+            ↓
           </span>
-          <strong>Drop the {title.toLowerCase()} folder here</strong>
-          <span>JSON or HTML exports work</span>
+          <strong>Drop the complete Instagram export folder here</strong>
+          <span>We’ll find the followers and following files inside it</span>
         </div>
       )}
 
       {state.status === "loading" && (
         <p className="status-message" aria-live="polite">
-          Reading your files on this device…
+          Searching the folder on this device…
         </p>
       )}
       {state.status === "error" && (
@@ -153,10 +172,7 @@ function ImportCard({
 
       <div className="import-actions">
         <button className="primary-button" onClick={() => folderInput.current?.click()}>
-          {state.status === "ready" ? "Replace folder" : "Choose folder"}
-        </button>
-        <button className="text-button" onClick={() => fileInput.current?.click()}>
-          Choose files instead
+          {state.status === "ready" ? "Choose a different folder" : "Choose Instagram folder"}
         </button>
       </div>
 
@@ -168,38 +184,11 @@ function ImportCard({
         webkitdirectory=""
         directory=""
         onChange={handleInput}
-        aria-label={`Choose ${title.toLowerCase()} folder`}
-      />
-      <input
-        ref={fileInput}
-        className="sr-only"
-        type="file"
-        multiple
-        accept=".json,.html,.htm,application/json,text/html"
-        onChange={handleInput}
-        aria-label={`Choose ${title.toLowerCase()} files`}
+        aria-label="Choose complete Instagram export folder"
       />
     </article>
   );
 }
-
-const TAB_DETAILS: Record<
-  ResultTab,
-  { label: string; description: string }
-> = {
-  notFollowingBack: {
-    label: "Don’t follow you back",
-    description: "You follow these accounts, but they are not in your followers list.",
-  },
-  youDoNotFollow: {
-    label: "You don’t follow back",
-    description: "These accounts follow you, but you do not follow them.",
-  },
-  mutuals: {
-    label: "Mutuals",
-    description: "You follow each other.",
-  },
-};
 
 function downloadCsv(usernames: string[], label: string) {
   const contents = ["username", ...usernames].join("\n");
@@ -213,41 +202,48 @@ function downloadCsv(usernames: string[], label: string) {
 }
 
 export default function App() {
-  const [followers, setFollowers] = useState<ImportState>(EMPTY_STATE);
-  const [following, setFollowing] = useState<ImportState>(EMPTY_STATE);
+  const [importState, setImportState] = useState<ImportState>({ status: "empty" });
   const [activeTab, setActiveTab] = useState<ResultTab>("notFollowingBack");
   const [search, setSearch] = useState("");
+  const [sortOrder, setSortOrder] = useState<SortOrder>("az");
 
-  const handleFiles = async (kind: ImportKind, files: File[]) => {
-    const setter = kind === "followers" ? setFollowers : setFollowing;
-    setter({ status: "loading" });
+  const handleFiles = async (files: File[]) => {
+    setImportState({ status: "loading" });
     try {
-      const data = await parseInstagramFiles(files, kind);
-      setter({ status: "ready", data });
+      const data = await parseInstagramExport(files);
+      setImportState({ status: "ready", data });
     } catch (error) {
-      setter({
+      setImportState({
         status: "error",
-        error: error instanceof Error ? error.message : "We could not read those files.",
+        error: error instanceof Error ? error.message : "We could not read that folder.",
       });
     }
   };
 
   const comparison = useMemo(() => {
-    if (!followers.data || !following.data) return null;
-    return compareLists(followers.data.usernames, following.data.usernames);
-  }, [followers.data, following.data]);
+    if (!importState.data) return null;
+    return compareLists(
+      importState.data.followers.usernames,
+      importState.data.following.usernames,
+    );
+  }, [importState.data]);
 
   const currentResults = comparison?.[activeTab] ?? [];
-  const filteredResults = currentResults.filter((username) =>
-    username.includes(search.trim().toLowerCase()),
-  );
+  const visibleResults = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return [...currentResults]
+      .filter((username) => username.includes(query))
+      .sort((a, b) =>
+        sortOrder === "az" ? a.localeCompare(b) : b.localeCompare(a),
+      );
+  }, [currentResults, search, sortOrder]);
 
   return (
     <>
       <header className="site-header">
-        <a className="brand" href="#top" aria-label="Mutual Check home">
-          <span className="brand-mark">M</span>
-          Mutual Check
+        <a className="brand" href="#top" aria-label="Only Friends home">
+          <span className="brand-mark">OF</span>
+          Only Friends
         </a>
         <a className="header-link" href="#how-it-works">
           How it works
@@ -258,13 +254,13 @@ export default function App() {
         <section className="hero">
           <p className="pill">No login · No uploads · No tracking</p>
           <h1>
-            Find out who’s
+            Your Instagram circle,
             <br />
-            <em>actually mutual.</em>
+            <em>made obvious.</em>
           </h1>
           <p className="hero-copy">
-            Compare your official Instagram followers and following exports.
-            Everything stays in your browser, exactly where it belongs.
+            Choose one Instagram export folder. Only Friends finds both lists,
+            compares them, and shows you exactly where everyone stands.
           </p>
           <div className="trust-row">
             <span>100% on-device</span>
@@ -277,27 +273,16 @@ export default function App() {
           <div className="section-heading">
             <div>
               <p className="eyebrow">Private comparison tool</p>
-              <h2 id="import-title">Add your two lists</h2>
+              <h2 id="import-title">Choose one folder</h2>
             </div>
             <span className="local-note">Files never leave this device</span>
           </div>
 
-          <div className="import-grid">
-            <ImportCard
-              kind="followers"
-              state={followers}
-              onFiles={(files) => handleFiles("followers", files)}
-            />
-            <ImportCard
-              kind="following"
-              state={following}
-              onFiles={(files) => handleFiles("following", files)}
-            />
-          </div>
+          <FolderImport state={importState} onFiles={handleFiles} />
 
           {!comparison && (
             <p className="compare-hint">
-              Your comparison will appear automatically when both imports are ready.
+              We’ll search every subfolder for Instagram’s followers and following files.
             </p>
           )}
 
@@ -305,16 +290,16 @@ export default function App() {
             <section className="results" aria-labelledby="results-title">
               <div className="results-heading">
                 <div>
-                  <p className="eyebrow">Your comparison</p>
-                  <h2 id="results-title">The results are in</h2>
+                  <p className="eyebrow">Your circle</p>
+                  <h2 id="results-title">Here’s everyone</h2>
                 </div>
                 <button
                   className="download-button"
                   onClick={() =>
-                    downloadCsv(currentResults, TAB_DETAILS[activeTab].label)
+                    downloadCsv(visibleResults, TAB_DETAILS[activeTab].label)
                   }
                 >
-                  Download CSV
+                  Download this view
                 </button>
               </div>
 
@@ -342,20 +327,38 @@ export default function App() {
                     <h3>{TAB_DETAILS[activeTab].label}</h3>
                     <p>{TAB_DETAILS[activeTab].description}</p>
                   </div>
-                  <label className="search-field">
-                    <span className="sr-only">Search usernames</span>
-                    <input
-                      type="search"
-                      value={search}
-                      onChange={(event) => setSearch(event.target.value)}
-                      placeholder="Search usernames"
-                    />
-                  </label>
+                  <div className="filter-controls">
+                    <label className="search-field">
+                      <span className="sr-only">Search usernames</span>
+                      <input
+                        type="search"
+                        value={search}
+                        onChange={(event) => setSearch(event.target.value)}
+                        placeholder="Search usernames"
+                      />
+                    </label>
+                    <label className="sort-field">
+                      <span className="sr-only">Sort usernames</span>
+                      <select
+                        value={sortOrder}
+                        onChange={(event) => setSortOrder(event.target.value as SortOrder)}
+                        aria-label="Sort usernames"
+                      >
+                        <option value="az">A–Z</option>
+                        <option value="za">Z–A</option>
+                      </select>
+                    </label>
+                  </div>
                 </div>
 
-                {filteredResults.length > 0 ? (
+                <p className="result-count">
+                  Showing {visibleResults.length.toLocaleString()} of{" "}
+                  {currentResults.length.toLocaleString()}
+                </p>
+
+                {visibleResults.length > 0 ? (
                   <ul className="username-list">
-                    {filteredResults.map((username) => (
+                    {visibleResults.map((username) => (
                       <li key={username}>
                         <span className="avatar-placeholder">
                           {username.charAt(0).toUpperCase()}
@@ -388,10 +391,11 @@ export default function App() {
         <section className="how-section" id="how-it-works">
           <div className="how-heading">
             <p className="eyebrow">Before you start</p>
-            <h2>Get the right files from Instagram</h2>
+            <h2>Download once. Choose once.</h2>
             <p>
-              Request your information from Instagram’s Accounts Center. Choose
-              “Followers and following,” select all time, and use JSON or HTML.
+              Request “Followers and following” from Instagram’s Accounts Center.
+              When the download is ready, choose the complete unzipped folder here—
+              not the individual files inside it.
             </p>
           </div>
           <ol className="how-steps">
@@ -407,30 +411,30 @@ export default function App() {
             </li>
             <li>
               <span>03</span>
-              <strong>Import both lists here</strong>
-              <p>Use the followers files for box 1 and the following file for box 2.</p>
+              <strong>Choose the complete folder</strong>
+              <p>Only Friends finds and compares the right files automatically.</p>
             </li>
           </ol>
         </section>
 
         <section className="privacy-section">
           <span className="privacy-icon" aria-hidden="true">
-            ◌
+            ✦
           </span>
           <div>
             <p className="eyebrow">Privacy by design</p>
-            <h2>We couldn’t see your lists even if we wanted to.</h2>
+            <h2>Your social circle stays yours.</h2>
           </div>
           <p>
             There is no account, database, analytics tracker, or upload server.
-            Your files are read locally by your browser and disappear when you
+            Your folder is read locally by your browser and disappears when you
             close or refresh the page.
           </p>
         </section>
       </main>
 
       <footer>
-        <span>Mutual Check</span>
+        <span>Only Friends</span>
         <p>
           Not affiliated with Instagram or Meta. Results reflect the export you provide.
         </p>

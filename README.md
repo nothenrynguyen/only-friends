@@ -1,4 +1,4 @@
-# Mutual Check
+# Only Friends
 
 A privacy-first Instagram followers/following comparison tool. Users import
 their official Instagram export files and all processing happens locally in the
@@ -6,10 +6,11 @@ browser.
 
 ## What it does
 
-- Accepts folders or individual Instagram JSON/HTML files
+- Accepts one complete Instagram export folder
+- Recursively discovers the followers and following files
 - Supports split follower exports such as `followers_1.json`
-- Shows accounts that do not follow back, accounts the user does not follow
-  back, and mutuals
+- Shows all unique accounts, mutuals, accounts that do not follow back, and
+  accounts the user does not follow back
 - Searches results and exports the current list as CSV
 - Has no login, backend, database, tracking, or file uploads
 
