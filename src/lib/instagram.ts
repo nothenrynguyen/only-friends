@@ -11,6 +11,8 @@ export type ImportFileDiscovery = {
   candidates: File[];
 };
 
+export type InstagramExportDiscovery = Record<ImportKind, ImportFileDiscovery>;
+
 const SUPPORTED_FILE = /\.(json|html?)$/i;
 
 function cleanUsername(input: string): string | null {
@@ -178,15 +180,28 @@ export function discoverImportFiles(
     };
   }
 
-  if (supported.length === 1) {
-    return { automaticFiles: supported, candidates: [] };
+  const unclassified = supported.filter((file) => classifyPath(file) === null);
+  if (unclassified.length === 0) {
+    throw new Error(
+      `Could not find Instagram’s ${kind} HTML or JSON file in that folder.`,
+    );
+  }
+  if (unclassified.length === 1) {
+    return { automaticFiles: unclassified, candidates: [] };
   }
 
   return {
     automaticFiles: [],
-    candidates: [...supported].sort((a, b) =>
+    candidates: [...unclassified].sort((a, b) =>
       filePath(a).localeCompare(filePath(b)),
     ),
+  };
+}
+
+export function discoverInstagramExport(files: File[]): InstagramExportDiscovery {
+  return {
+    followers: discoverImportFiles(files, "followers"),
+    following: discoverImportFiles(files, "following"),
   };
 }
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   compareLists,
   discoverImportFiles,
+  discoverInstagramExport,
   parseInstagramFiles,
   parseInstagramHtml,
   parseInstagramJson,
@@ -111,6 +112,33 @@ describe("Instagram export parsing", () => {
 
     expect(result.automaticFiles).toEqual([followerOne, followerTwo]);
     expect(result.candidates).toEqual([]);
+  });
+
+  it("finds both lists in one followers_and_following folder and ignores the rest", () => {
+    const followers = new File(
+      [JSON.stringify([relationship("alice")])],
+      "followers_1.json",
+      { type: "application/json" },
+    );
+    const following = new File(
+      [JSON.stringify({ relationships_following: [relationship("bob")] })],
+      "following.json",
+      { type: "application/json" },
+    );
+    const recentlyUnfollowed = new File(
+      [JSON.stringify([relationship("charlie")])],
+      "recently_unfollowed_accounts.json",
+      { type: "application/json" },
+    );
+
+    const result = discoverInstagramExport([
+      recentlyUnfollowed,
+      following,
+      followers,
+    ]);
+
+    expect(result.followers.automaticFiles).toEqual([followers]);
+    expect(result.following.automaticFiles).toEqual([following]);
   });
 
   it("asks the user when a folder has multiple ambiguous files", () => {

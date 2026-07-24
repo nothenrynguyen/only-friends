@@ -219,6 +219,11 @@ input:focus-visible {
   margin-top: 38px;
 }
 
+.single-grid {
+  grid-template-columns: minmax(0, 760px);
+  justify-content: center;
+}
+
 .import-card {
   min-height: 355px;
   padding: 26px;
@@ -231,6 +236,10 @@ input:focus-visible {
     border-color 160ms ease,
     background 160ms ease,
     transform 160ms ease;
+}
+
+.single-import {
+  min-height: 380px;
 }
 
 .import-card.is-dragging {
@@ -336,6 +345,30 @@ input:focus-visible {
   font-size: 12px;
 }
 
+.dual-success {
+  display: grid;
+  grid-template-columns: 1fr 1px 1fr;
+  column-gap: 34px;
+  align-content: center;
+}
+
+.dual-success > div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.dual-success .success-divider {
+  width: 1px;
+  height: 74px;
+  margin: auto;
+  background: #d7d2f6;
+}
+
+.dual-success p {
+  grid-column: 1 / -1;
+}
+
 .candidate-picker {
   flex: 1;
   min-height: 0;
@@ -343,12 +376,16 @@ input:focus-visible {
   text-align: center;
 }
 
-.candidate-picker > strong {
+.candidate-group + .candidate-group {
+  margin-top: 18px;
+}
+
+.candidate-group > strong {
   display: block;
   font-size: 15px;
 }
 
-.candidate-picker > p {
+.candidate-group > p {
   margin: 5px 0 14px;
   color: var(--muted);
   font-size: 12px;

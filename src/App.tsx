@@ -7,7 +7,7 @@ import {
 } from "react";
 import {
   compareLists,
-  discoverImportFiles,
+  discoverInstagramExport,
   displayFilePath,
   parseInstagramFiles,
   type ImportKind,
@@ -40,24 +40,6 @@ const TAB_DETAILS: Record<ResultTab, { label: string; description: string }> = {
   youDoNotFollow: {
     label: "You don’t follow back",
     description: "These accounts follow you, but you do not follow them.",
-  },
-};
-
-const IMPORT_COPY: Record<
-  ImportKind,
-  { step: string; eyebrow: string; title: string; action: string }
-> = {
-  followers: {
-    step: "1",
-    eyebrow: "People who follow you",
-    title: "Followers folder",
-    action: "Choose followers folder",
-  },
-  following: {
-    step: "2",
-    eyebrow: "People you follow",
-    title: "Following folder",
-    action: "Choose following folder",
   },
 };
 
@@ -105,23 +87,27 @@ async function filesFromDrop(event: DragEvent): Promise<File[]> {
 }
 
 function FolderImport({
-  kind,
-  state,
+  states,
   onFiles,
   onCandidate,
 }: {
-  kind: ImportKind;
-  state: ImportState;
-  onFiles: (kind: ImportKind, files: File[]) => void;
+  states: Record<ImportKind, ImportState>;
+  onFiles: (files: File[]) => void;
   onCandidate: (kind: ImportKind, file: File) => void;
 }) {
   const folderInput = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
-  const copy = IMPORT_COPY[kind];
+  const ready = states.followers.status === "ready" && states.following.status === "ready";
+  const loading =
+    states.followers.status === "loading" || states.following.status === "loading";
+  const errors = [states.followers.error, states.following.error].filter(Boolean);
+  const choices = (["followers", "following"] as ImportKind[]).filter(
+    (kind) => states[kind].status === "choosing" && states[kind].candidates,
+  );
 
   const handleInput = (event: ChangeEvent<HTMLInputElement>) => {
     const files = [...(event.target.files ?? [])];
-    if (files.length) onFiles(kind, files);
+    if (files.length) onFiles(files);
     event.target.value = "";
   };
 
@@ -129,12 +115,12 @@ function FolderImport({
     event.preventDefault();
     setDragging(false);
     const files = await filesFromDrop(event);
-    if (files.length) onFiles(kind, files);
+    if (files.length) onFiles(files);
   };
 
   return (
     <article
-      className={`import-card ${dragging ? "is-dragging" : ""} ${state.status === "ready" ? "is-ready" : ""}`}
+      className={`import-card single-import ${dragging ? "is-dragging" : ""} ${ready ? "is-ready" : ""}`}
       onDragEnter={(event) => {
         event.preventDefault();
         setDragging(true);
@@ -148,69 +134,80 @@ function FolderImport({
       onDrop={handleDrop}
     >
       <div className="card-heading">
-        <span className="step-number">{copy.step}</span>
+        <span className="step-number">1</span>
         <div>
-          <p className="eyebrow">{copy.eyebrow}</p>
-          <h3>{copy.title}</h3>
+          <p className="eyebrow">One folder, both lists</p>
+          <h3>followers_and_following</h3>
         </div>
-        {state.status === "ready" && (
-          <span className="ready-badge" aria-label={`${copy.title} ready`}>
+        {ready && (
+          <span className="ready-badge" aria-label="Instagram export ready">
             ✓ Ready
           </span>
         )}
       </div>
 
-      {state.status === "ready" && state.data ? (
-        <div className="import-success">
-          <strong>{state.data.usernames.length.toLocaleString()}</strong>
-          <span>{kind}</span>
+      {ready && states.followers.data && states.following.data ? (
+        <div className="import-success dual-success">
+          <div>
+            <strong>{states.followers.data.usernames.length.toLocaleString()}</strong>
+            <span>followers</span>
+          </div>
+          <span className="success-divider" aria-hidden="true" />
+          <div>
+            <strong>{states.following.data.usernames.length.toLocaleString()}</strong>
+            <span>following in export</span>
+          </div>
           <p>
-            Read {state.data.parsedFileNames.length}{" "}
-            {state.data.parsedFileNames.length === 1 ? "file" : "files"}
+            Read the exact followers and following files; other relationship files
+            were ignored.
           </p>
         </div>
-      ) : state.status === "choosing" && state.candidates ? (
+      ) : choices.length > 0 ? (
         <div className="candidate-picker">
-          <strong>Which file contains your {kind}?</strong>
-          <p>We found more than one possible list inside this folder.</p>
-          <div className="candidate-list">
-            {state.candidates.map((file) => (
-              <button
-                key={displayFilePath(file)}
-                className="candidate-button"
-                onClick={() => onCandidate(kind, file)}
-                title={displayFilePath(file)}
-              >
-                <span>{displayFilePath(file)}</span>
-                <b>Use this file</b>
-              </button>
-            ))}
-          </div>
+          {choices.map((kind) => (
+            <div key={kind} className="candidate-group">
+              <strong>Which file contains your {kind}?</strong>
+              <p>We could not identify it by its filename.</p>
+              <div className="candidate-list">
+                {states[kind].candidates?.map((file) => (
+                  <button
+                    key={`${kind}-${displayFilePath(file)}`}
+                    className="candidate-button"
+                    onClick={() => onCandidate(kind, file)}
+                    title={displayFilePath(file)}
+                  >
+                    <span>{displayFilePath(file)}</span>
+                    <b>Use this file</b>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
         <div className="drop-copy">
           <span className="folder-icon" aria-hidden="true">
             ↓
           </span>
-          <strong>Drop the {kind} folder here</strong>
-          <span>We’ll search every folder inside it for HTML or JSON</span>
+          <strong>Drop the followers_and_following folder here</strong>
+          <span>We’ll find the correct HTML or JSON files inside it</span>
         </div>
       )}
 
-      {state.status === "loading" && (
+      {loading && (
         <p className="status-message" aria-live="polite">
           Searching this folder on your device…
         </p>
       )}
-      {state.status === "error" && (
-        <p className="error-message" role="alert">
-          {state.error}
+      {errors.map((error) => (
+        <p key={error} className="error-message" role="alert">
+          {error}
         </p>
-      )}
+      ))}
 
       <div className="import-actions">
         <button className="primary-button" onClick={() => folderInput.current?.click()}>
-          {state.status === "empty" ? copy.action : "Choose a different folder"}
+          {ready || choices.length > 0 ? "Choose a different folder" : "Choose Instagram folder"}
         </button>
       </div>
 
@@ -222,7 +219,7 @@ function FolderImport({
         webkitdirectory=""
         directory=""
         onChange={handleInput}
-        aria-label={copy.action}
+        aria-label="Choose followers and following folder"
         aria-hidden="true"
         tabIndex={-1}
       />
@@ -267,23 +264,29 @@ export default function App() {
     }
   };
 
-  const handleFolder = async (kind: ImportKind, files: File[]) => {
-    setImport(kind, { status: "loading" });
+  const handleFolder = async (files: File[]) => {
+    setImports({
+      followers: { status: "loading" },
+      following: { status: "loading" },
+    });
     try {
-      const discovery = discoverImportFiles(files, kind);
-      if (discovery.automaticFiles.length > 0) {
-        await parseFiles(kind, discovery.automaticFiles);
-      } else {
-        setImport(kind, {
-          status: "choosing",
-          candidates: discovery.candidates,
-        });
-      }
+      const discovery = discoverInstagramExport(files);
+      (["followers", "following"] as ImportKind[]).forEach((kind) => {
+        if (discovery[kind].automaticFiles.length > 0) {
+          void parseFiles(kind, discovery[kind].automaticFiles);
+        } else {
+          setImport(kind, {
+            status: "choosing",
+            candidates: discovery[kind].candidates,
+          });
+        }
+      });
     } catch (error) {
-      setImport(kind, {
+      const failed: ImportState = {
         status: "error",
         error: error instanceof Error ? error.message : "We could not read that folder.",
-      });
+      };
+      setImports({ followers: failed, following: failed });
     }
   };
 
@@ -326,8 +329,8 @@ export default function App() {
             <em>made obvious.</em>
           </h1>
           <p className="hero-copy">
-            Choose your followers folder and your following folder. Only Friends
-            finds the lists inside, compares them, and shows you where everyone stands.
+            Choose Instagram’s followers_and_following folder once. Only Friends
+            finds both lists inside, compares them, and shows you where everyone stands.
           </p>
           <div className="trust-row">
             <span>100% on-device</span>
@@ -340,21 +343,14 @@ export default function App() {
           <div className="section-heading">
             <div>
               <p className="eyebrow">Private comparison tool</p>
-              <h2 id="import-title">Choose two folders</h2>
+              <h2 id="import-title">Choose one folder</h2>
             </div>
             <span className="local-note">Files never leave this device</span>
           </div>
 
-          <div className="import-grid">
+          <div className="import-grid single-grid">
             <FolderImport
-              kind="followers"
-              state={imports.followers}
-              onFiles={handleFolder}
-              onCandidate={(kind, file) => parseFiles(kind, [file])}
-            />
-            <FolderImport
-              kind="following"
-              state={imports.following}
+              states={imports}
               onFiles={handleFolder}
               onCandidate={(kind, file) => parseFiles(kind, [file])}
             />
@@ -362,8 +358,8 @@ export default function App() {
 
           {!comparison && (
             <p className="compare-hint">
-              Choose both folders to compare them. Split files such as followers_1
-              and followers_2 are combined automatically.
+              We use only followers, split followers files, and following. Other
+              files in this folder are ignored.
             </p>
           )}
 
@@ -478,11 +474,11 @@ export default function App() {
         <section className="how-section" id="how-it-works">
           <div className="how-heading">
             <p className="eyebrow">Before you start</p>
-            <h2>Download once. Choose two folders.</h2>
+            <h2>Download once. Choose one folder.</h2>
             <p>
               Request “Followers and following” from Instagram’s Accounts Center.
-              Unzip the download, then choose the folders containing each list.
-              You do not need to find or select the HTML or JSON files yourself.
+              Unzip the download, then choose its followers_and_following folder.
+              You do not need to find or select any HTML or JSON files yourself.
             </p>
           </div>
           <ol className="how-steps">
@@ -493,13 +489,13 @@ export default function App() {
             </li>
             <li>
               <span>02</span>
-              <strong>Choose the followers folder</strong>
-              <p>Only Friends finds and combines every split followers file inside.</p>
+              <strong>Open the unzipped download</strong>
+              <p>Find Instagram’s folder named followers_and_following.</p>
             </li>
             <li>
               <span>03</span>
-              <strong>Choose the following folder</strong>
-              <p>If a folder has multiple possible files, you’ll be asked which one to use.</p>
+              <strong>Choose that one folder</strong>
+              <p>Only Friends finds both lists, combines split files, and ignores the rest.</p>
             </li>
           </ol>
         </section>
