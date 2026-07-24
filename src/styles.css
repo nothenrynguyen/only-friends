@@ -76,21 +76,6 @@ input:focus-visible {
   letter-spacing: -0.02em;
 }
 
-.brand-mark {
-  display: grid;
-  width: 36px;
-  height: 32px;
-  place-items: center;
-  border-radius: 50%;
-  color: #fff;
-  background: var(--green);
-  font-family: "Instrument Serif", serif;
-  font-family: "DM Sans", sans-serif;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: -0.04em;
-}
-
 .header-link {
   color: var(--muted);
   font-size: 14px;

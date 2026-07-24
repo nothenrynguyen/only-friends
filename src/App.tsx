@@ -412,7 +412,6 @@ export default function App() {
     <>
       <header className="site-header">
         <a className="brand" href="#top" aria-label="Only Friends home">
-          <span className="brand-mark">OF</span>
           Only Friends
         </a>
         <a className="header-link" href="#how-it-works">
@@ -762,7 +761,11 @@ export default function App() {
         <section className="how-section" id="how-it-works">
           <div className="how-heading">
             <p className="eyebrow">Before you start</p>
-            <h2>Download once. Choose one folder.</h2>
+            <h2>
+              Download once.
+              <br />
+              Choose one folder.
+            </h2>
             <p>
               Request “Followers and following” from Instagram’s Accounts Center.
               Unzip the download, then choose its followers_and_following folder.
